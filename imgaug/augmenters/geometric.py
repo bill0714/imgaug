@@ -4182,3 +4182,150 @@ class Rot90(meta.Augmenter):
 
     def get_parameters(self):
         return [self.k, self.keep_size]
+
+
+class Jigsaw(meta.Augmenter):
+    """Move cells within images similar to jigsaw patterns.
+
+    .. warning::
+
+        This augmenter currently only supports augmentation of images,
+        heatmaps, segmentation maps and keypoints. Other augmentables will
+        produce errors.
+
+    dtype support::
+
+        See :func:`apply_jigsaw`.
+
+    Parameters
+    ----------
+    nb_rows : int or list of int or tuple of int or imgaug.parameters.StochasticParameter
+        How many rows the jigsaw pattern should have.
+
+            * If a single ``int``, then that value will be used for all images.
+            * If a tuple ``(a, b)``, then a random value will be uniformly
+              sampled per image from the discrete interval ``[a..b]``.
+            * If a list, then for each image a random value will be sampled
+              from that list.
+            * If ``StochasticParameter``, then that parameter is queried per
+              image to sample the value to use.
+
+    nb_cols : int or list of int or tuple of int or imgaug.parameters.StochasticParameter
+        How many cols the jigsaw pattern should have.
+
+            * If a single ``int``, then that value will be used for all images.
+            * If a tuple ``(a, b)``, then a random value will be uniformly
+              sampled per image from the discrete interval ``[a..b]``.
+            * If a list, then for each image a random value will be sampled
+              from that list.
+            * If ``StochasticParameter``, then that parameter is queried per
+              image to sample the value to use.
+
+    max_steps : int or list of int or tuple of int or imgaug.parameters.StochasticParameter, optional
+        How many steps each jigsaw cell may be moved.
+
+            * If a single ``int``, then that value will be used for all images.
+            * If a tuple ``(a, b)``, then a random value will be uniformly
+              sampled per image from the discrete interval ``[a..b]``.
+            * If a list, then for each image a random value will be sampled
+              from that list.
+            * If ``StochasticParameter``, then that parameter is queried per
+              image to sample the value to use.
+
+    allow_pad : bool, optional
+        Whether to allow automatically padding images until they are evenly
+        divisible by ``nb_rows`` and ``nb_cols``.
+
+    name : None or str, optional
+        See :func:`imgaug.augmenters.meta.Augmenter.__init__`.
+
+    deterministic : bool, optional
+        See :func:`imgaug.augmenters.meta.Augmenter.__init__`.
+
+    random_state : None or int or imgaug.random.RNG or numpy.random.Generator or numpy.random.bit_generator.BitGenerator or numpy.random.SeedSequence or numpy.random.RandomState, optional
+        See :func:`imgaug.augmenters.meta.Augmenter.__init__`.
+
+
+    Examples
+    --------
+    TODO
+
+    """
+
+    def __init__(self, nb_rows, nb_cols, max_steps=2, allow_pad=True,
+                 name=None, deterministic=False, random_state=None):
+        super(Jigsaw, self).__init__(
+            name=name, deterministic=deterministic, random_state=random_state)
+
+        self.nb_rows = iap.handle_discrete_param(
+            nb_rows, "nb_rows", value_range=(1, None), tuple_to_uniform=True,
+            list_to_choice=True, allow_floats=False)
+        self.nb_cols = iap.handle_discrete_param(
+            nb_cols, "nb_cols", value_range=(1, None), tuple_to_uniform=True,
+            list_to_choice=True, allow_floats=False)
+        self.max_steps = iap.handle_discrete_param(
+            max_steps, "max_steps", value_range=(0, None),
+            tuple_to_uniform=True, list_to_choice=True, allow_floats=False)
+        self.allow_pad = allow_pad
+
+    def _augment_batch(self, batch, random_state, parents, hooks):
+        samples = self._draw_samples(batch, random_state)
+        if batch.images is not None:
+            for i, image in enumerate(batch.images):
+                # TODO pad first
+                image[...] = apply_jigsaw(image, samples.destinations[i])
+                # TODO crop back to original size
+
+        # TODO heatmaps
+        # TODO segmaps
+
+        if batch.keypoints is not None:
+            for i, kpsoi in enumerate(batch.keypoints):
+                # TODO pad first
+                xy = kpsoi.to_xy_array()
+                xy[...] = apply_jigsaw_to_coords(xy,
+                                                 samples.destinations[i],
+                                                 image_shape=kpsoi.shape)
+                kpsoi.fill_from_xy_array_(xy)
+                # TODO crop back original size
+
+        has_other_cbaoi = any([getattr(batch, attr_name) is not None
+                               for attr_name
+                               in ["bounding_boxes", "polygons",
+                                   "line_strings"]])
+        if has_other_cbaoi:
+            raise NotImplementedError(
+                "Jigsaw currently only supports augmentation of images "
+                "and keypoints.")
+
+        return batch
+
+    def _draw_samples(self, batch, random_state):
+        nb_images = batch.nb_rows
+        nb_rows = self.nb_rows.draw_samples((nb_images,),
+                                            random_state=random_state)
+        nb_cols = self.nb_cols.draw_samples((nb_images,),
+                                            random_state=random_state)
+        max_steps = self.max_steps.draw_samples((nb_images,),
+                                                random_state=random_state)
+        destinations = []
+        for i in np.arange(nb_images):
+            destinations.append(
+                generate_jigsaw_destinations(
+                    nb_rows[i], nb_cols[i], max_steps[i],
+                    random_state=random_state)
+            )
+
+        samples = _JigsawSamples(nb_rows, nb_cols, max_steps, destinations)
+        return samples
+
+    def get_parameters(self):
+        return [self.nb_rows, self.nb_cols, self.max_steps, self.allow_pad]
+
+
+class _JigsawSamples(object):
+    def __init__(self, nb_rows, nb_cols, max_steps, destinations):
+        self.nb_rows = nb_rows
+        self.nb_cols = nb_cols
+        self.max_steps = max_steps
+        self.destinations = destinations

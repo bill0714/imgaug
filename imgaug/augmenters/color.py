@@ -1593,7 +1593,7 @@ class RemoveSaturation(MultiplySaturation):
     >>> image = ia.quokka()  # uint8 (H, W, 3) RGB array
     >>> aug = iaa.RemoveSaturation()
     >>> image_grayish = aug(image=image)
-    
+
     Create and apply an augmenter that decreases saturation by varying degrees.
 
     >>> aug = iaa.RemoveSaturation(1.0)
@@ -2403,7 +2403,7 @@ class GrayscaleColorwise(meta.Augmenter):
 
       1. Split the hue in ``HSV`` into ``nb_bins`` bins.
       2. Shift the bins by ``offset`` degrees. (This way, the ``0th`` bin does
-         not always start at exactly ``0°`` of hue.)
+         not always start at exactly ``0deg`` of hue.)
       3. Sample ``alpha`` values for each bin.
       4. Smoothen the alpha values of neighbouring bins using a gaussian
          kernel. The kernel's ``sigma`` is derived from ``smoothness``.
@@ -2465,7 +2465,7 @@ class GrayscaleColorwise(meta.Augmenter):
         Rotiational shift of each bin as a fraction of ``360`` degrees.
         E.g. ``0.0`` will not shift any bins, while a value of ``0.5`` will
         shift by around ``180`` degrees. This shift is mainly used so that
-        the ``0th`` bin does not always start at ``0°``. Expected value
+        the ``0th`` bin does not always start at ``0deg``. Expected value
         range is ``[0.0, 1.0]``. This parameter can usually kept at the default
         value.
 
@@ -2728,6 +2728,7 @@ class RemoveSaturationColorwise(GrayscaleColorwise):
                  alpha=[0.0, 1.0], offset=(0.0, 1.0),
                  from_colorspace=CSPACE_RGB,
                  name=None, deterministic=False, random_state=None):
+        # pylint: disable=dangerous-default-value
         super(RemoveSaturationColorwise, self).__init__(
             nb_bins=nb_bins, smoothness=smoothness,
             alpha=alpha, offset=offset,
@@ -2748,8 +2749,8 @@ class RemoveSaturationColorwise(GrayscaleColorwise):
                                          from_colorspaces=from_colorspace)
 
         nth_bin = 0
-        gen = enumerate(zip(images_hsv, nb_bins, smoothness, offset))
-        for i, (img_hsv, nb_bins_i, smoothness_i, offset_i) in gen:
+        gen = zip(images_hsv, nb_bins, smoothness, offset)
+        for img_hsv, nb_bins_i, smoothness_i, offset_i in gen:
             # skip images with zero-sized axes as these cause issues
             # in the used cv2 functions
             if 0 in img_hsv.shape[0:2]:

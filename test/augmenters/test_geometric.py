@@ -8414,6 +8414,23 @@ class Test_apply_jigsaw(unittest.TestCase):
                     atol = 1e-4 if dtype == "float16" else 1e-8
                     assert np.allclose(observed, arr, rtol=0, atol=atol)
 
+    def test_no_movement_zero_sizes_axes(self):
+        sizes = [
+            (0, 1),
+            (1, 0),
+            (0, 0)
+        ]
+
+        dtype = "uint8"
+        for size in sizes:
+            with self.subTest(size=size):
+                arr = np.zeros(size, dtype=dtype)
+                destinations = np.arange(1*1).reshape((1, 1))
+
+                observed = iaa.apply_jigsaw(arr, destinations)
+
+                assert np.array_equal(observed, arr)
+
     def _test_two_cells_moved__n_channels(self, nb_channels):
         dtypes = ["bool",
                   "uint8", "uint16", "uint32", "uint64",

@@ -362,6 +362,22 @@ def apply_jigsaw(arr, destinations):
     This function will split the image into ``rows x cols`` cells and
     move each cell to the target index given in `destinations`.
 
+    dtype support::
+
+        * ``uint8``: yes; fully tested
+        * ``uint16``: yes; fully tested
+        * ``uint32``: yes; fully tested
+        * ``uint64``: yes; fully tested
+        * ``int8``: yes; fully tested
+        * ``int16``: yes; fully tested
+        * ``int32``: yes; fully tested
+        * ``int64``: yes; fully tested
+        * ``float16``: yes; fully tested
+        * ``float32``: yes; fully tested
+        * ``float64``: yes; fully tested
+        * ``float128``: yes; fully tested
+        * ``bool``: yes; fully tested
+
     Parameters
     ----------
     arr : ndarray

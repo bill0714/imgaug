@@ -8398,6 +8398,12 @@ class Test_apply_jigsaw(unittest.TestCase):
         for dtype in dtypes:
             with self.subTest(dtype=dtype):
                 arr = np.arange(20*20*1).reshape((20, 20, 1))
+                if dtype == "bool":
+                    mask = np.logical_or(
+                        arr % 4 == 0,
+                        arr % 7 == 0)
+                    arr[mask] = 1
+                    arr[~mask] = 0
                 arr = arr.astype(dtype)
                 min_value, center_value, max_value = \
                     iadt.get_value_range_of_dtype(dtype)
@@ -8414,7 +8420,7 @@ class Test_apply_jigsaw(unittest.TestCase):
                     atol = 1e-4 if dtype == "float16" else 1e-8
                     assert np.allclose(observed, arr, rtol=0, atol=atol)
 
-    def test_no_movement_zero_sizes_axes(self):
+    def test_no_movement_zero_sized_axes(self):
         sizes = [
             (0, 1),
             (1, 0),
@@ -8441,6 +8447,12 @@ class Test_apply_jigsaw(unittest.TestCase):
             with self.subTest(dtype=dtype):
                 c = 1 if nb_channels is None else nb_channels
                 arr = np.arange(20*20*c)
+                if dtype == "bool":
+                    mask = np.logical_or(
+                        arr % 4 == 0,
+                        arr % 7 == 0)
+                    arr[mask] = 1
+                    arr[~mask] = 0
                 if nb_channels is not None:
                     arr = arr.reshape((20, 20, c))
                 else:
